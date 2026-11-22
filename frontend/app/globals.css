@@ -1,0 +1,66 @@
+@import "tailwindcss";
+
+:root {
+    --background: #000000;
+    --foreground: #ffffff;
+}
+
+@theme inline {
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
+
+    --color-base-black: #000000;
+    --color-base-surface: #0a0a0a;
+    --color-base-card: #141414;
+    --color-base-border: #262626;
+
+    --color-gain: #00c853;
+    --color-loss: #ff3b3b;
+
+    --color-ink-primary: #ffffff;
+    --color-ink-muted: #a3a3a3;
+
+    /* ---- Landing (light theme) tokens ---- */
+    --color-paper: #f5f4ef;
+    --color-surface: #fbfaf7;
+    --color-line: #e3e1d9;
+    --color-ink: #1f2937;
+    --color-ink-soft: #6b7280;
+    --color-up: #1e8e5a;
+    --color-down: #c0392b;
+    --color-brand: #2f5fd0;
+
+    --font-sans: var(--font-geist-sans);
+    --font-mono: var(--font-geist-mono);
+    --font-heading: var(--font-jakarta);
+}
+
+body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+@keyframes ai-in {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+.ai-line {
+    opacity: 0;
+    animation: ai-in 0.35s ease-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ai-line {
+        opacity: 1;
+        animation: none;
+    }
+}

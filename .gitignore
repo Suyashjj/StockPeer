@@ -1,0 +1,25 @@
+# dependencies
+node_modules
+.venv
+venv
+__pycache__
+*.pyc
+.ipynb_checkpoints
+
+# env files and secrets
+.env
+.env.*
+!.env.example
+*.pem
+
+# build output
+dist
+.next
+out
+build
+.vercel
+*.tsbuildinfo
+
+# OS files
+.DS_Store
+Thumbs.db

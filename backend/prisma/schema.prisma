@@ -1,0 +1,473 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  USER
+  EXPERT
+  ADMIN
+}
+
+enum VerificationStatus {
+  UNVERIFIED
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum AccountStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum PanStatus {
+  NOT_SUBMITTED
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum ExperienceLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+enum RiskComfort {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum ExpertType {
+  SEBI_RA
+  SEBI_IA
+  CA
+  CFA
+  EDUCATOR
+  OTHER
+}
+
+enum ApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum GroupType {
+  COMMUNITY
+  PREMIUM
+}
+
+enum PlanTier {
+  PREMIUM
+  ELITE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  CREATED
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum SessionStatus {
+  REQUESTED
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+}
+
+enum TicketKind {
+  CHANGE
+  GENERAL
+}
+
+enum TicketStatus {
+  OPEN
+  APPROVED
+  REJECTED
+  RESOLVED
+}
+
+enum ChangeField {
+  NAME
+  EMAIL
+  PHONE
+  CREDENTIAL
+  PAN
+  ID_DOCUMENT
+  PROOF_DOCUMENT
+}
+
+enum EventType {
+  JOIN
+  LEAVE
+  VIEW
+  ASK_AI
+}
+
+model User {
+  id                 String             @id @default(cuid())
+  name               String
+  email              String             @unique
+  phone              String             @unique
+  passwordHash       String
+  role               Role               @default(USER)
+  verificationStatus VerificationStatus @default(UNVERIFIED)
+  accountStatus      AccountStatus      @default(ACTIVE)
+  emailVerifiedAt    DateTime?
+  phoneVerifiedAt    DateTime?
+  termsAcceptedAt    DateTime?
+  termsVersion       String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  profile            UserProfile?
+  expertProfile      ExpertProfile?
+  memberships        Membership[]
+  messages           Message[]
+  subscriptions      Subscription[]
+  payments           Payment[]
+  expertAssignments  ExpertAssignment[]
+  expertDemands      ExpertDemand[]
+  expertRequests     ExpertRequest[]
+  sessionsAsUser     CounsellingSession[] @relation("SessionUser")
+  sessionsAsExpert   CounsellingSession[] @relation("SessionExpert")
+  tickets            SupportTicket[]
+  events             InteractionEvent[]
+  recommendations    Recommendation[]
+  passwordResets     PasswordReset[]
+}
+
+model UserProfile {
+  id                  String           @id @default(cuid())
+  userId              String           @unique
+  user                User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  photoUrl            String?
+  dateOfBirth         DateTime?
+  city                String?
+  occupation          String?
+  language            String           @default("en")
+
+  experienceLevel     ExperienceLevel?
+  riskComfort         RiskComfort?
+  sectorsOfInterest   String[]
+
+  panEncrypted        String?
+  panMasked           String?
+  panDocumentPublicId String?
+  panStatus           PanStatus        @default(NOT_SUBMITTED)
+  panSubmittedAt      DateTime?
+  panReviewedAt       DateTime?
+  panReviewedById     String?
+  panRejectReason     String?
+
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+}
+
+model ExpertProfile {
+  id                    String            @id @default(cuid())
+  userId                String            @unique
+  user                  User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  expertType            ExpertType
+  credentialNumber      String?           @unique
+  profileLink           String?
+  experienceYears       Int
+  expertise             String[]
+  bio                   String
+  city                  String?
+  language              String            @default("en")
+
+  photoUrl              String
+  panEncrypted          String
+  panMasked             String
+  idDocumentPublicId    String
+  proofDocumentPublicId String
+
+  applicationStatus     ApplicationStatus @default(PENDING)
+  submittedAt           DateTime          @default(now())
+  reviewedAt            DateTime?
+  reviewedById          String?
+  rejectReason          String?
+
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+}
+
+model Stock {
+  id        String   @id @default(cuid())
+  symbol    String   @unique
+  name      String
+  sector    String?
+  isin      String?  @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  expertDemands ExpertDemand[]
+  expertRequests ExpertRequest[]
+  events          InteractionEvent[]
+  recommendations Recommendation[]
+
+  groups    Group[]
+
+  @@index([name])
+  @@index([sector])
+}
+
+model Group {
+  id          String    @id @default(cuid())
+  stockId     String
+  stock       Stock     @relation(fields: [stockId], references: [id], onDelete: Cascade)
+  type        GroupType @default(COMMUNITY)
+  memberCount Int       @default(0)
+  createdById String?
+  createdAt   DateTime  @default(now())
+
+  members           Membership[]
+  messages          Message[]
+  expertAssignments ExpertAssignment[]
+  premiumAccess     PremiumAccess[]
+  maxExperts        Int              @default(2)
+
+  @@unique([stockId, type])
+}
+
+model Membership {
+  id       String   @id @default(cuid())
+  userId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  groupId  String
+  group    Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  joinedAt DateTime @default(now())
+  lastReadAt DateTime @default(now())
+
+
+  @@unique([userId, groupId])
+  @@index([groupId])
+}
+
+model Message {
+  id        String    @id @default(cuid())
+  groupId   String
+  group     Group     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  senderId  String
+  sender    User      @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  body      String
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+  fileId    String?
+  fileName  String?
+  fileType  String?
+  fileSize  Int?
+
+  @@index([groupId, createdAt])
+}
+
+model Plan {
+  id           String   @id @default(cuid())
+  tier         PlanTier
+  months       Int
+  pricePaise   Int
+  groupLimit   Int
+  sessionLimit Int      @default(0)
+  isActive     Boolean  @default(true)
+
+  subscriptions Subscription[]
+  payments      Payment[]
+
+  @@unique([tier, months])
+}
+
+model Subscription {
+  id            String             @id @default(cuid())
+  userId        String
+  user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planId        String
+  plan          Plan               @relation(fields: [planId], references: [id])
+  status        SubscriptionStatus @default(ACTIVE)
+  startsAt      DateTime
+  endsAt        DateTime
+  groupLimit    Int
+  sessionsTotal Int
+  sessionsUsed  Int                @default(0)
+  createdAt     DateTime           @default(now())
+
+  access   PremiumAccess[]
+  payments Payment[]
+  sessions CounsellingSession[]
+
+  @@index([userId, status])
+}
+
+model PremiumAccess {
+  id             String       @id @default(cuid())
+  subscriptionId String
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  groupId        String
+  group          Group        @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+
+  @@unique([subscriptionId, groupId])
+  @@index([groupId])
+}
+
+model Payment {
+  id                String        @id @default(cuid())
+  userId            String
+  user              User          @relation(fields: [userId], references: [id])
+  planId            String
+  plan              Plan          @relation(fields: [planId], references: [id])
+  subscriptionId    String?
+  subscription      Subscription? @relation(fields: [subscriptionId], references: [id])
+  razorpayOrderId   String        @unique
+  razorpayPaymentId String?       @unique
+  amountPaise       Int
+  status            PaymentStatus @default(CREATED)
+  createdAt         DateTime      @default(now())
+  paidAt            DateTime?
+
+  @@index([userId])
+}
+
+model ExpertAssignment {
+  id         String   @id @default(cuid())
+  groupId    String
+  group      Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  expertId   String
+  expert     User     @relation(fields: [expertId], references: [id], onDelete: Cascade)
+  assignedAt DateTime @default(now())
+
+  @@unique([groupId, expertId])
+  @@index([expertId])
+}
+
+model ExpertDemand {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stockId   String
+  stock     Stock    @relation(fields: [stockId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, stockId])
+  @@index([stockId])
+}
+
+model ExpertRequest {
+  id           String            @id @default(cuid())
+  expertId     String
+  expert       User              @relation(fields: [expertId], references: [id], onDelete: Cascade)
+  stockId      String
+  stock        Stock             @relation(fields: [stockId], references: [id], onDelete: Cascade)
+  note         String?
+  status       ApplicationStatus @default(PENDING)
+  rejectReason String?
+  reviewedAt   DateTime?
+  reviewedById String?
+  createdAt    DateTime          @default(now())
+
+  @@index([status, createdAt])
+  @@index([expertId])
+  @@index([stockId])
+}
+
+model CounsellingSession {
+  id             String        @id @default(cuid())
+  userId         String
+  user           User          @relation("SessionUser", fields: [userId], references: [id], onDelete: Cascade)
+  subscriptionId String
+  subscription   Subscription  @relation(fields: [subscriptionId], references: [id])
+  expertId       String?
+  expert         User?         @relation("SessionExpert", fields: [expertId], references: [id], onDelete: SetNull)
+  topic          String
+  preferredAt    DateTime?
+  status         SessionStatus @default(REQUESTED)
+  scheduledAt    DateTime?
+  meetingLink    String?
+  durationMins   Int           @default(20)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([userId, status])
+  @@index([expertId, status])
+  @@index([status, createdAt])
+}
+
+model SupportTicket {
+  id           String       @id @default(cuid())
+  userId       String
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind         TicketKind
+  subject      String
+  message      String
+  field        ChangeField?
+  oldValue     String?
+  newValue     String?
+  documentId   String?
+  status       TicketStatus @default(OPEN)
+  adminReply   String?
+  reviewedById String?
+  reviewedAt   DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+}
+
+model InteractionEvent {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stockId   String
+  stock     Stock     @relation(fields: [stockId], references: [id], onDelete: Cascade)
+  type      EventType
+  createdAt DateTime  @default(now())
+
+  @@index([userId, createdAt])
+  @@index([stockId, type])
+}
+
+// Written by the Python ML job later. The rules engine below does not use it.
+model Recommendation {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stockId     String
+  stock       Stock    @relation(fields: [stockId], references: [id], onDelete: Cascade)
+  score       Float
+  reason      String
+  algorithm   String
+  generatedAt DateTime @default(now())
+
+  @@unique([userId, stockId, algorithm])
+  @@index([userId, algorithm])
+}
+
+model PasswordReset {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
